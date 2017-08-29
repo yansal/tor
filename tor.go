@@ -8,12 +8,11 @@ import (
 	"io/ioutil"
 	"math/rand"
 	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
 	"strings"
 	"sync"
-
-	"golang.org/x/net/proxy"
 )
 
 type Tor struct {
@@ -124,16 +123,15 @@ func (tor *Tor) Log() string {
 }
 
 // randomPort generates a random int between 10000 and 19999
+// TODO: ask to OS for a random port
 func randomPort() int { return rand.Intn(10000) + 10000 }
 
 func geoip(torAddr string) (GeoIP, error) {
-	// Ask tor output IP to torproject
-	dialer, err := proxy.SOCKS5("tcp", torAddr, nil, proxy.Direct)
-	if err != nil {
-		return GeoIP{}, err
-	}
+	// Ask tor exit IP to check.torproject.org
 	httpClient := http.Client{Transport: &http.Transport{
-		Dial: dialer.Dial,
+		Proxy: func(*http.Request) (*url.URL, error) {
+			return url.Parse("socks5://" + torAddr)
+		},
 	}}
 	resp, err := httpClient.Get("https://check.torproject.org/api/ip")
 	if err != nil {
